@@ -21,19 +21,6 @@ For each upstream message:
   - If the report does not exist, we fall back to calculating credits from the message `text`. 
 - If the message has no `report_id`, we calculate credits from the message `text`. The compute_credits function handles the algorithm to calculate the credits.
 
-The response matches the contract documented in `test.py` comments:
-
-```json
-{
-  "usage": [
-    {
-      "message_id": 1000,
-      "timestamp": "2024-04-29T02:08:29.375Z",
-      "report_name": "Tenant Obligations Report",
-      "credits_used": 79
-    }
-  ]
-}
 ```
 
 Notes:
@@ -45,7 +32,7 @@ Notes:
 
 - Python **3.11+**
 
-## Running the server locally
+## Running the server locally (MacOS/Linux)
 
 ```bash
 make dev
@@ -68,7 +55,7 @@ Example:
 LOG_LEVEL=debug make dev
 ```
 
-## Run with Docker
+## Run with Docker (Not tested)
 
 ```bash
 docker compose up --build
