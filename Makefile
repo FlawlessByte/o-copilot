@@ -1,4 +1,4 @@
-.PHONY: help venv install run dev clean
+.PHONY: help venv install run dev test clean
 
 VENV ?= .venv
 PY   := $(VENV)/bin/python
@@ -14,6 +14,7 @@ help:
 	@echo "  make install  - install dependencies into $(VENV)/"
 	@echo "  make run      - run FastAPI server (no reload)"
 	@echo "  make dev      - run FastAPI server with --reload"
+	@echo "  make test     - run unit tests (pytest)"
 	@echo "  make clean    - remove $(VENV)/"
 
 venv:
@@ -28,6 +29,9 @@ run: install
 
 dev: install
 	@$(UVICORN) app.main:app --reload --host $(HOST) --port $(PORT)
+
+test: install
+	@$(PY) -m pytest -q
 
 clean:
 	@rm -rf "$(VENV)"

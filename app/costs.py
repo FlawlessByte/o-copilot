@@ -46,10 +46,18 @@
 #     
 from decimal import Decimal
 
-BASE_COST = 1
-vowels = {"a", "e", "i", "o", "u"}
+import structlog
 
-def compute_world_length_multiplier(text):
+logger = structlog.get_logger("o-copilot.costs")
+
+BASE_COST = Decimal("1")
+CHAR_COST = Decimal("0.05")
+THIRD_VOWEL_COST = Decimal("0.3")
+LENGTH_PENALTY_COST = Decimal("5")
+UNIQUE_WORD_BONUS = Decimal("2")
+VOWELS = {"a", "e", "i", "o", "u"}
+
+def _compute_world_length_multiplier(text):
 #         - **Word Length Multipliers:**
 #         - For words of 1-3 characters: Add 0.1 credits per word.
 #         - For words of 4-7 characters: Add 0.2 credits per word.
@@ -62,82 +70,76 @@ def compute_world_length_multiplier(text):
         return Decimal("0.2")
     else:
         return Decimal("0.3")
-    
-    
-    
+      
 
 def compute_credits(text):
     
-    total_credits = Decimal(BASE_COST)
-    print(total_credits)
+    total_credits = BASE_COST
     
-    total_chars = len(text)
+    char_count = len(text)
     
-    if total_chars == 0:
+    if char_count == 0:
+        logger.debug("compute_credits", char_count=0, credits=str(total_credits))
         return total_credits
     
-    total_credits += Decimal(total_chars * Decimal("0.05"))
-    print(total_credits)
+    total_credits += Decimal(char_count) * CHAR_COST
+    third_vowel_hits = 0
+    word_count = 0
     
     # - **Length Penalty:** If the message length exceeds 100 characters, add a penalty of 5 credits.
-    if total_chars > 100:
-        total_credits += Decimal(5)
+    if char_count > 100:
+        total_credits += LENGTH_PENALTY_COST
+        logger.debug("Length penalty applied")
+
     
     
     tmp = ""
-    normed_question = ""
-    original_words = []
-    tmp_word = ""
-    
-    all_chars = ""
-    
-    print(total_credits)
+    normed_msg = ""
+    words = []
+    # tmp_word = ""
     
     for idx, ch in enumerate(text):
-        # G:0 e:1 n:2 e:3 r:4 a:5 t:6 e:7
-        # **Third Vowels:** If any third (i.e. 3rd, 6th, 9th) character is an uppercase or lowercase vowel (a, e, i, o, u) add 0.3 credits for each occurrence.
-        if (idx+1) % 3 == 0 and idx < total_chars:
-            if ch.lower() in vowels:
-                print(f"Adding 0.3 credits because of the vowel: {ch}")
-                total_credits += Decimal("0.3")
+        # **Third VOWELS:** If any third (i.e. 3rd, 6th, 9th) character is an uppercase or lowercase vowel (a, e, i, o, u) add 0.3 credits for each occurrence.
+        if (idx+1) % 3 == 0 and idx < char_count:
+            if ch.lower() in VOWELS:
+                total_credits += THIRD_VOWEL_COST
+                third_vowel_hits += 1
         
         
         if ch == " ":
             # word ended
-            # print(tmp)
-            total_credits += compute_world_length_multiplier(tmp)
-            original_words.append(tmp)
+            total_credits += _compute_world_length_multiplier(tmp)
+            words.append(tmp)
+            word_count += 1
+            normed_msg += tmp.lower()
             tmp = ""
-            normed_question += tmp_word
-            tmp_word = ""
+            # tmp_word = ""
         elif ch.isalnum() or ch == "-" or ch == "'":
-            tmp_word += ch.lower()
+            # tmp_word += ch.lower()
             tmp += ch
         
-    total_credits += compute_world_length_multiplier(tmp_word)
-    normed_question += tmp_word
-    original_words.append(tmp)
-    print(f"total credit: {total_credits}")
-    
-    
-    print(f"Original words: {original_words}")
-    print(f"Normed normed_words: {normed_question}")
-    # - **Palindromes:** If the entire message is a palindrome (that is to say, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward), double the total cost after all other rules have been applied.
-    if normed_question == normed_question[::-1]:
-        total_credits += total_credits
         
-    print(f"total credit: {total_credits}")
+    total_credits += _compute_world_length_multiplier(tmp.lower())
+    normed_msg += tmp.lower()
+    words.append(tmp)
+    word_count += 1
+
+    # - **Palindromes:** If the entire message is a palindrome (that is to say, after converting all uppercase letters into lowercase letters and removing all non-alphanumeric characters, it reads the same forward and backward), double the total cost after all other rules have been applied.
+    if normed_msg == normed_msg[::-1]:
+        total_credits += total_credits
+        logger.debug("Palindrome found")
         
     # - **Unique Word Bonus: If all words in the message are unique (case-sensitive), subtract 2 credits from the total cost (remember the minimum cost should still be 1 credit).**
-    if len(original_words) == len(set(original_words)):
-        total_credits = max(1, total_credits - 2)
+    if len(words) == len(set(words)):
+        total_credits = max(BASE_COST, total_credits - UNIQUE_WORD_BONUS)
+        logger.debug("Unique word bonus applied")
     
-    
-    
+    logger.debug(
+        "compute_credits",
+        char_count=char_count,
+        word_count=word_count,
+        third_vowel_hits=third_vowel_hits,
+        credits=str(total_credits),
+    )
     return total_credits
 
-
-
-print(compute_credits("Generate-d a Tenant Obligations Report for the new lease terms."))
-print(compute_credits("Hello world hello"))
-print(compute_credits("Hello olleH"))

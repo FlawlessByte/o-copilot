@@ -1,2 +1,0 @@
-"""Orbital Copilot usage service."""
-
